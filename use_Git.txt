@@ -1,0 +1,724 @@
+================================================================
+Git 使い方ガイド ― 注意点と具体的な手順
+================================================================
+作成日: 2026-03-20
+対象環境: Windows (WSL / Git Bash / ネイティブ)
+================================================================
+
+目次
+----
+1. Gitのインストールと初期設定
+2. 基本的な操作フロー
+3. ブランチの操作
+4. リモートリポジトリ (GitHub) との連携
+5. よく使うコマンド一覧
+6. コンフリクト (競合) の解消
+7. 履歴の修正・取り消し
+8. タグ管理
+9. Gitの設定ファイル (.gitconfig / .gitignore)
+10. Windows/WSL環境での注意点
+11. よくあるエラーと対処法
+12. セキュリティ上の注意点
+13. ベストプラクティス
+
+================================================================
+1. Gitのインストールと初期設定
+================================================================
+
+【Windowsネイティブ (Git Bash)】
+---------------------------------
+1. https://git-scm.com/download/win からインストーラをダウンロード
+2. インストール時の推奨設定：
+   - "Git from the command line and also from 3rd-party software" を選択
+   - 改行コード変換: "Checkout Windows-style, commit Unix-style line endings"
+   - デフォルトエディタ: 好みに応じて (VS Code 推奨)
+3. インストール後、Git Bash または PowerShell から確認:
+   $ git --version
+
+【WSL (Ubuntu等)】
+-------------------
+$ sudo apt update
+$ sudo apt install git
+$ git --version
+
+【初期設定 (必須)】
+--------------------
+インストール後、最初に必ず以下を設定する。
+コミットに記録される名前とメールアドレスなので正確に入力すること。
+
+$ git config --global user.name "Your Name"
+$ git config --global user.email "you@example.com"
+
+# デフォルトブランチ名を main に統一 (GitHub の標準に合わせる)
+$ git config --global init.defaultBranch main
+
+# デフォルトエディタの設定 (VS Code の場合)
+$ git config --global core.editor "code --wait"
+
+# 改行コード設定
+# Windows ネイティブ:
+$ git config --global core.autocrlf true
+# WSL / Mac / Linux:
+$ git config --global core.autocrlf input
+
+# 設定の確認
+$ git config --list --global
+
+================================================================
+2. 基本的な操作フロー
+================================================================
+
+【新しいリポジトリを作成する】
+--------------------------------
+$ mkdir my_project
+$ cd my_project
+$ git init
+# → .git フォルダが作成される
+
+【既存リポジトリをクローンする】
+---------------------------------
+$ git clone https://github.com/username/repo-name.git
+$ cd repo-name
+
+【日常の作業フロー】
+---------------------
+作業の基本サイクルは以下の通り:
+
+  [ファイル編集] → [git add] → [git commit] → [git push]
+
+手順詳細:
+
+1. 現在の状態を確認する
+   $ git status
+   # 変更ファイル、ステージング状態が表示される
+
+2. 変更内容を確認する
+   $ git diff              # 未ステージの差分
+   $ git diff --staged     # ステージ済みの差分
+
+3. ファイルをステージングエリアに追加する
+   $ git add ファイル名          # 特定ファイルを追加
+   $ git add src/               # ディレクトリ以下を追加
+   $ git add -p                 # 変更を対話的に選択して追加 (推奨)
+   ※ git add . や git add -A は .env など機密ファイルを
+     誤って含めるリスクがあるため注意が必要
+
+4. コミットする
+   $ git commit -m "コミットメッセージ"
+   $ git commit              # エディタが開く (詳細メッセージを書く場合)
+
+5. リモートにプッシュする
+   $ git push origin main
+
+【コミットメッセージの書き方】
+--------------------------------
+良いコミットメッセージの構成:
+
+  件名 (1行、50文字以内): 何をしたかを動詞で始める
+  <空行>
+  本文 (任意): なぜこの変更が必要だったかを説明
+
+例:
+  Fix login timeout bug on mobile devices
+
+  Mobile devices with slow connections were getting logged out
+  because the session timeout was too short (30 seconds).
+  Increased to 5 minutes and added exponential backoff.
+
+日本語でも可:
+  ログインタイムアウトのバグを修正
+
+  モバイル回線が遅い環境でセッションが30秒で切れていた問題を修正。
+  タイムアウトを5分に延長し、リトライにバックオフを追加。
+
+================================================================
+3. ブランチの操作
+================================================================
+
+【ブランチの基本概念】
+-----------------------
+- main: 本番相当の安定ブランチ
+- feature/*: 新機能開発用
+- fix/*: バグ修正用
+- release/*: リリース準備用
+- hotfix/*: 緊急修正用
+
+【ブランチの作成・切り替え】
+------------------------------
+# ブランチ一覧を確認
+$ git branch          # ローカルブランチ
+$ git branch -a       # リモートブランチも含む
+
+# 新しいブランチを作成して切り替え (推奨)
+$ git switch -c feature/add-login
+
+# 既存ブランチへの切り替え
+$ git switch main
+
+# 旧コマンド (現在も動作する)
+$ git checkout -b feature/add-login
+$ git checkout main
+
+【ブランチのマージ】
+---------------------
+# main に feature ブランチをマージする例
+$ git switch main
+$ git pull origin main        # 最新の状態に更新
+$ git merge feature/add-login
+
+# マージ完了後、不要なブランチを削除
+$ git branch -d feature/add-login        # ローカルブランチ削除
+$ git push origin --delete feature/add-login  # リモートブランチ削除
+
+【リベース】
+-------------
+リベースはコミット履歴をきれいに保つための操作。
+ただし、すでにリモートにプッシュしたコミットのリベースは禁止。
+
+# feature ブランチを main の最新に追いつかせる
+$ git switch feature/my-feature
+$ git rebase main
+
+# 対話的リベース (直近3コミットを整理)
+$ git rebase -i HEAD~3
+
+================================================================
+4. リモートリポジトリ (GitHub) との連携
+================================================================
+
+【SSH認証の設定 (推奨)】
+--------------------------
+HTTPS接続よりSSH接続の方がセキュアで便利。
+
+1. SSHキーを生成
+   $ ssh-keygen -t ed25519 -C "you@example.com"
+   # 保存場所: ~/.ssh/id_ed25519 (デフォルト)
+   # パスフレーズの設定を推奨
+
+2. SSHエージェントに登録
+   $ eval "$(ssh-agent -s)"
+   $ ssh-add ~/.ssh/id_ed25519
+
+3. 公開キーをGitHubに登録
+   $ cat ~/.ssh/id_ed25519.pub
+   # 出力内容をコピー
+   # GitHub → Settings → SSH and GPG keys → New SSH key
+
+4. 接続テスト
+   $ ssh -T git@github.com
+   # "Hi username! You've successfully authenticated." と表示されればOK
+
+5. リモートURLをSSHに変更 (既存リポジトリ)
+   $ git remote set-url origin git@github.com:username/repo.git
+
+【リモートの操作】
+-------------------
+# リモートの確認
+$ git remote -v
+
+# リモートを追加
+$ git remote add origin https://github.com/username/repo.git
+
+# リモートの変更を取得 (マージしない)
+$ git fetch origin
+
+# リモートの変更を取得してマージ
+$ git pull origin main
+
+# 初回プッシュ (上流ブランチを設定)
+$ git push -u origin main
+
+# 以降のプッシュ
+$ git push
+
+【プルリクエスト (PR) の流れ】
+--------------------------------
+1. feature ブランチで作業・コミット
+2. GitHub にプッシュ
+3. GitHub 上で "New pull request" を作成
+4. レビュワーを指定してレビュー依頼
+5. レビュー後、マージ
+6. マージ済みブランチを削除
+
+================================================================
+5. よく使うコマンド一覧
+================================================================
+
+【状態確認系】
+$ git status                # 作業ツリーの状態
+$ git log                   # コミット履歴
+$ git log --oneline         # 1行で表示
+$ git log --oneline --graph # ブランチグラフ付き
+$ git log -p                # 差分付き
+$ git show コミットID       # 特定コミットの詳細
+$ git diff                  # 未ステージの変更
+$ git diff --staged         # ステージ済みの変更
+$ git diff main..feature    # ブランチ間の差分
+$ git blame ファイル名      # 行ごとのコミット情報
+
+【ファイル操作系】
+$ git add ファイル名         # ステージング
+$ git add -p                 # 対話的にステージング
+$ git rm ファイル名          # ファイル削除 + ステージング
+$ git mv 旧名 新名           # ファイル移動/リネーム
+$ git restore ファイル名     # 変更を破棄 (未ステージ)
+$ git restore --staged ファイル名  # ステージを取り消す
+
+【スタッシュ (一時退避)】
+$ git stash                  # 変更を一時退避
+$ git stash push -m "説明"  # メッセージ付きで退避
+$ git stash list             # 退避リスト
+$ git stash pop              # 最新の退避を復元して削除
+$ git stash apply stash@{0} # 特定の退避を復元 (削除しない)
+$ git stash drop stash@{0}  # 特定の退避を削除
+$ git stash clear            # 全退避を削除
+
+【検索系】
+$ git grep "検索文字列"     # ファイル内容を検索
+$ git log --grep="キーワード" # コミットメッセージを検索
+$ git log -S "コード"        # 追加/削除されたコードを検索
+
+================================================================
+6. コンフリクト (競合) の解消
+================================================================
+
+【コンフリクトが発生する状況】
+--------------------------------
+- 同じファイルの同じ箇所を複数人が変更してマージした場合
+- git merge や git rebase 中に発生する
+
+【コンフリクトの確認と解消手順】
+----------------------------------
+1. マージ実行
+   $ git merge feature/other-branch
+   # CONFLICT メッセージが表示される
+
+2. コンフリクトファイルの確認
+   $ git status
+   # "both modified" と表示されているファイルがある
+
+3. ファイルを開いてコンフリクトマーカーを確認
+   ファイル内に以下のような記号が挿入される:
+
+   <<<<<<< HEAD
+   現在のブランチの内容
+   =======
+   マージしてきたブランチの内容
+   >>>>>>> feature/other-branch
+
+4. 手動で編集して正しい内容にする
+   - マーカー記号 (<<<, ===, >>>) をすべて削除すること
+
+5. 解消後にステージングしてコミット
+   $ git add 解消したファイル
+   $ git commit
+   # コミットメッセージは自動生成される (そのままでもOK)
+
+【コンフリクト解消を中止する場合】
+------------------------------------
+$ git merge --abort    # マージを取り消す
+$ git rebase --abort   # リベースを取り消す
+
+【VS Code を使ったコンフリクト解消】
+--------------------------------------
+VS Code では "Accept Current Change" / "Accept Incoming Change" /
+"Accept Both Changes" のボタンが表示され、視覚的に解消できる。
+Source Control パネルの "Merge Changes" セクションも活用すること。
+
+================================================================
+7. 履歴の修正・取り消し
+================================================================
+
+【重要な原則】
+--------------
+!! すでにリモートにプッシュしたコミットの履歴変更は原則禁止 !!
+チームで共有しているブランチでの履歴変更は他のメンバーに
+大きな影響を与えるため、必ず事前に合意を取ること。
+
+【直前のコミットを修正する (ローカルのみ)】
+---------------------------------------------
+# コミットメッセージだけ変更
+$ git commit --amend -m "修正後のメッセージ"
+
+# ファイルを追加してコミットをやり直す
+$ git add 追加するファイル
+$ git commit --amend --no-edit   # メッセージはそのまま
+
+【コミットを取り消す】
+-----------------------
+# 直前のコミットを取り消してステージング状態に戻す (安全)
+$ git reset --soft HEAD~1
+
+# 直前のコミットを取り消して変更を作業ツリーに戻す
+$ git reset HEAD~1
+
+# 直前のコミットを完全に削除 (変更内容も消える、危険)
+$ git reset --hard HEAD~1
+
+# コミットを取り消すコミットを作成 (プッシュ済みの場合はこちら)
+$ git revert HEAD
+$ git revert コミットID
+
+【ファイルの変更を元に戻す】
+------------------------------
+# ステージングを取り消す (ファイル内容は変わらない)
+$ git restore --staged ファイル名
+
+# 作業ツリーの変更を破棄 (元に戻せない、注意!)
+$ git restore ファイル名
+
+# 特定コミット時点のファイル内容に戻す
+$ git restore --source=コミットID ファイル名
+
+【reflog で操作を遡る】
+------------------------
+誤ってリセットしても reflog で復元できることがある。
+
+$ git reflog          # 操作履歴を確認
+$ git reset --hard HEAD@{2}   # 2つ前の状態に戻す
+
+================================================================
+8. タグ管理
+================================================================
+
+【タグの作成】
+$ git tag v1.0.0                           # 軽量タグ
+$ git tag -a v1.0.0 -m "Release v1.0.0"  # 注釈付きタグ (推奨)
+
+【タグの確認と削除】
+$ git tag                   # タグ一覧
+$ git show v1.0.0           # タグの詳細
+$ git tag -d v1.0.0         # ローカルタグ削除
+
+【タグのプッシュ】
+$ git push origin v1.0.0   # 特定タグをプッシュ
+$ git push origin --tags   # 全タグをプッシュ
+
+# リモートタグの削除
+$ git push origin --delete v1.0.0
+
+================================================================
+9. Gitの設定ファイル
+================================================================
+
+【.gitconfig (ユーザー設定)】
+------------------------------
+~/.gitconfig に保存される。よく使う設定例:
+
+[user]
+    name = Your Name
+    email = you@example.com
+
+[core]
+    editor = code --wait
+    autocrlf = input   # Windows は true
+
+[alias]
+    st = status
+    co = checkout
+    sw = switch
+    br = branch
+    lg = log --oneline --graph --decorate --all
+    undo = reset HEAD~1
+    unstage = restore --staged
+
+[pull]
+    rebase = false    # pull 時のデフォルト動作 (merge)
+
+[init]
+    defaultBranch = main
+
+エイリアスの使用例:
+$ git st    # git status と同じ
+$ git lg    # ブランチグラフ表示
+
+【.gitignore (除外設定)】
+--------------------------
+プロジェクトルートに置く。バージョン管理しないファイルを指定。
+
+# .gitignore の例 (Python プロジェクト)
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.env
+.venv/
+venv/
+*.log
+.DS_Store
+Thumbs.db
+node_modules/
+.idea/
+.vscode/
+
+# グローバル .gitignore (全プロジェクト共通)
+$ git config --global core.excludesfile ~/.gitignore_global
+
+!! 重要 !!
+.env や機密ファイルは必ず .gitignore に追加してから
+git add すること。一度コミットしたファイルは履歴に残る。
+
+【既にコミットしてしまったファイルをキャッシュから除去】
+---------------------------------------------------------
+$ git rm --cached ファイル名
+$ git rm --cached -r ディレクトリ名/
+# .gitignore に追加してからコミットする
+
+================================================================
+10. Windows/WSL環境での注意点
+================================================================
+
+【改行コード問題 (CRLF vs LF)】
+---------------------------------
+Windows は CRLF (\r\n)、Linux/Mac は LF (\n) を使う。
+チームで混在すると差分が大量に出て困る。
+
+推奨設定:
+- Windows ネイティブ: core.autocrlf = true
+  チェックアウト時に LF → CRLF、コミット時に CRLF → LF
+- WSL / Mac: core.autocrlf = input
+  コミット時のみ CRLF → LF
+
+プロジェクトの .gitattributes でも制御できる:
+# .gitattributes
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+【WSL でのファイルパフォーマンス】
+------------------------------------
+- /mnt/c/ 経由のアクセスは遅い (Windows FS 経由)
+- プロジェクトは /home/username/ に置くと速い
+- WSL から Windows のファイルを操作するのは最小限に
+
+【WSL と Windows Git の共存】
+-------------------------------
+WSL の中と Windows ネイティブで別々に Git がインストールされる。
+設定 (.gitconfig) も別々なので、両方に初期設定が必要。
+
+WSL から Windows の Git を呼ばないよう注意:
+$ which git        # /usr/bin/git となっているか確認
+
+【認証情報の管理】
+-------------------
+# Windows の資格情報マネージャーを WSL から使う場合
+$ git config --global credential.helper \
+  "/mnt/c/Program\ Files/Git/mingw64/bin/git-credential-manager.exe"
+
+# または WSL 専用のキャッシュ
+$ git config --global credential.helper 'cache --timeout=3600'
+
+【パスの違い】
+---------------
+WSL 内:    /home/username/project
+Windows:   C:\Users\username\project
+WSL から Windows パスへ: /mnt/c/Users/username/project
+
+wslpath コマンドで変換できる:
+$ wslpath "C:\Users\username\project"
+→ /mnt/c/Users/username/project
+
+================================================================
+11. よくあるエラーと対処法
+================================================================
+
+【エラー: "Please tell me who you are."】
+------------------------------------------
+原因: user.name / user.email が未設定
+対処:
+$ git config --global user.name "Your Name"
+$ git config --global user.email "you@example.com"
+
+【エラー: "Your branch is behind 'origin/main'"】
+--------------------------------------------------
+原因: リモートに新しいコミットがある
+対処:
+$ git pull origin main
+
+【エラー: "Updates were rejected because the remote contains work"】
+--------------------------------------------------------------------
+原因: ローカルよりリモートが先行している
+対処:
+$ git pull origin main    # リモートの変更を取り込んでからプッシュ
+
+【エラー: "fatal: not a git repository"】
+------------------------------------------
+原因: git init されていないディレクトリで操作した
+対処:
+$ git init
+# または正しいディレクトリに移動
+
+【エラー: "CONFLICT (content): Merge conflict in ファイル名"】
+--------------------------------------------------------------
+原因: 同じファイルを複数箇所で変更してマージした
+対処: 「6. コンフリクトの解消」を参照
+
+【エラー: "detached HEAD state"】
+----------------------------------
+原因: コミットIDやタグを直接 checkout した
+対処:
+$ git switch main          # 既存ブランチに戻る
+# または変更を保存したい場合:
+$ git switch -c new-branch-name    # 新ブランチを作成して移動
+
+【エラー: "Permission denied (publickey)"】
+--------------------------------------------
+原因: SSH キーが GitHub に登録されていない or エージェントに追加されていない
+対処:
+$ ssh-add ~/.ssh/id_ed25519
+$ ssh -T git@github.com     # 接続テスト
+
+【エラー: "filename too long" (Windows)】
+------------------------------------------
+原因: Windows のパス長制限 (260文字)
+対処:
+$ git config --global core.longpaths true
+
+【エラー: "CRLF will be replaced by LF"】
+------------------------------------------
+原因: 改行コードの自動変換についての警告 (エラーではなく警告)
+これは正常動作。気になる場合は .gitattributes で制御する。
+
+================================================================
+12. セキュリティ上の注意点
+================================================================
+
+【絶対にコミットしてはいけないもの】
+--------------------------------------
+以下のファイルや情報は絶対にリポジトリにコミットしない:
+
+- パスワード、APIキー、シークレットキー
+- .env ファイル (環境変数ファイル)
+- 秘密鍵ファイル (*.pem, *.key, id_rsa 等)
+- データベース接続文字列
+- 認証トークン (AWS_ACCESS_KEY_ID 等)
+- 個人情報を含むデータファイル
+
+【誤ってコミットした場合の対処】
+---------------------------------
+1. まずリモートへのプッシュを確認
+   プッシュ前なら: git reset --hard HEAD~1 で取り消し
+
+2. プッシュ済みの場合:
+   - GitHub の場合: サポートに連絡して完全削除を依頼
+   - APIキーなどは即座に無効化・ローテーションする
+   - git filter-repo ツールで履歴から削除する
+
+3. 再発防止:
+   - .gitignore を必ず最初に設定する
+   - git-secrets や pre-commit フックを導入する
+
+【git-secrets のインストール (シークレット混入防止)】
+------------------------------------------------------
+$ git clone https://github.com/awslabs/git-secrets.git
+$ cd git-secrets && sudo make install
+$ git secrets --install
+$ git secrets --register-aws    # AWS キーのパターンを登録
+
+【.env ファイルの扱い方】
+--------------------------
+# .env.example (サンプル、コミットしてOK)
+DATABASE_URL=postgres://user:password@localhost/dbname
+API_KEY=your_api_key_here
+
+# .env (実際の値、絶対コミット禁止)
+DATABASE_URL=postgres://admin:s3cr3t@prod-db/myapp
+API_KEY=sk-abcdef123456
+
+.gitignore に必ず追加:
+.env
+.env.local
+.env.production
+
+【コミット署名 (GPG)】
+-----------------------
+コミットの真正性を証明するためにGPG署名を設定できる:
+
+$ gpg --gen-key
+$ gpg --list-secret-keys --keyid-format LONG
+$ git config --global user.signingkey キーID
+$ git config --global commit.gpgsign true
+
+================================================================
+13. ベストプラクティス
+================================================================
+
+【コミットの粒度】
+-------------------
+- 1コミット = 1つの論理的な変更
+- 大きすぎず、小さすぎず
+- 「動く状態」でコミットする (壊れた状態でのコミットは避ける)
+- WIPコミット (作業途中) はプッシュ前にまとめる
+
+【ブランチ戦略】
+-----------------
+小規模チームの場合 (GitHub Flow):
+  main → feature/xxx → (PR) → main
+
+大規模チームの場合 (Git Flow):
+  main ← release ← develop ← feature/xxx
+                 ← hotfix
+
+【プッシュ前のチェックリスト】
+--------------------------------
+□ git status でコミット漏れがないか確認
+□ git diff でレビューしてほしくない変更が混入していないか確認
+□ 機密情報 (.env, APIキー) が含まれていないか確認
+□ テストが通っているか確認
+□ コミットメッセージが適切か確認
+
+【チーム開発での注意事項】
+---------------------------
+1. main ブランチに直接プッシュしない
+2. 機能開発は必ず feature ブランチを切る
+3. 長期間のブランチは定期的に main を rebase/merge して最新化
+4. force push (git push --force) は原則禁止
+   (やむを得ない場合は --force-with-lease を使う)
+5. レビュー前のコードをメインブランチにマージしない
+
+【便利なエイリアス設定】
+--------------------------
+~/.gitconfig の [alias] セクションに追加:
+
+[alias]
+    # よく使う操作
+    st = status
+    co = checkout
+    sw = switch
+    br = branch -vv
+
+    # ログ表示
+    lg = log --oneline --graph --decorate --all
+    last = log -1 HEAD --stat
+
+    # 差分
+    d = diff
+    ds = diff --staged
+
+    # 安全な操作
+    undo = reset HEAD~1 --mixed
+    unstage = restore --staged
+
+    # 便利系
+    aliases = config --get-regexp alias
+    contributors = shortlog --summary --numbered
+
+================================================================
+参考リンク
+================================================================
+
+- Git 公式ドキュメント: https://git-scm.com/doc
+- GitHub Docs: https://docs.github.com
+- Pro Git (無料書籍): https://git-scm.com/book/ja/v2
+- Git チートシート (GitHub):
+  https://training.github.com/downloads/ja/github-git-cheat-sheet/
+- WSL 公式ドキュメント:
+  https://learn.microsoft.com/ja-jp/windows/wsl/
+
+================================================================
+更新履歴
+================================================================
+2026-03-20  初版作成
+
+================================================================
