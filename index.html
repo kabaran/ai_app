@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>関数電卓</title>
+  <title>電卓</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -17,326 +17,173 @@
     }
 
     .calc {
-      background: #ffd700;
-      border-radius: 22px;
-      padding: 18px;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.7);
-      width: 380px;
+      background: #16213e;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      width: 320px;
     }
 
-    /* ── ヘッダー ── */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-    .header h1 { font-size: 1rem; color: #5a4000; font-weight: 700; }
-    #degBtn {
-      border: none; border-radius: 7px; padding: 4px 13px;
-      font-size: 0.78rem; font-weight: 700; cursor: pointer;
-      background: #e65100; color: #fff;
-      letter-spacing: 0.08em; transition: background 0.2s;
-    }
-
-    /* ── ディスプレイ ── */
     .display {
-      background: #1a1a2e;
-      border-radius: 14px;
-      padding: 12px 16px 14px;
-      margin-bottom: 10px;
+      background: #0f3460;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
       text-align: right;
     }
-    .display .history {
-      font-size: 0.72rem; color: #555; min-height: 1.1em;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
+
     .display .expr {
-      font-size: 0.88rem; color: #ffd700; min-height: 1.4em;
-      margin: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: 0.85rem;
+      color: #a0aec0;
+      min-height: 1.2em;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
+
     .display .result {
-      font-size: 2.4rem; color: #fff; font-weight: 300;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      transition: font-size 0.1s;
-    }
-    .display .result.small  { font-size: 1.7rem; }
-    .display .result.xsmall { font-size: 1.2rem; }
-
-    /* メモリバッジ */
-    .mem-row { display: flex; gap: 6px; margin-bottom: 10px; min-height: 18px; }
-    .mem-badge {
-      background: #e65100; color: #fff; font-size: 0.65rem;
-      padding: 2px 7px; border-radius: 4px; font-weight: 700;
-      opacity: 0; transition: opacity 0.2s; user-select: none;
-    }
-    .mem-badge.on { opacity: 1; }
-
-    /* ── 科学関数グリッド（5列・コンパクト） ── */
-    .sci-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 6px;
-      margin-bottom: 6px;
+      font-size: 2.2rem;
+      color: #e2e8f0;
+      font-weight: 300;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    /* ── 区切り線 ── */
-    .divider {
-      border: none;
-      border-top: 1.5px solid rgba(0,0,0,0.15);
-      margin: 8px 0;
-    }
-
-    /* ── 数字パッド（4列・大型） ── */
-    .num-grid {
+    .grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
+      gap: 10px;
     }
 
-    /* ── ボタン共通 ── */
     button {
+      padding: 18px 0;
       border: none;
       border-radius: 10px;
+      font-size: 1.1rem;
       cursor: pointer;
+      transition: transform 0.1s, filter 0.1s;
       font-weight: 500;
-      transition: transform 0.07s, filter 0.07s, box-shadow 0.1s;
-      user-select: none;
     }
-    button:active { transform: scale(0.90); filter: brightness(0.78); }
 
-    /* 科学ボタン：コンパクト */
-    .sci-grid button { padding: 11px 0; font-size: 0.8rem; }
+    button:active { transform: scale(0.94); filter: brightness(0.85); }
 
-    /* 数字パッドボタン：大型 */
-    .num-grid button { padding: 18px 0; font-size: 1.05rem; }
+    .btn-num {
+      background: #1a1a2e;
+      color: #e2e8f0;
+    }
 
-    /* 色種別 */
-    .btn-num   { background: #fff9c4; color: #222; }
-    .btn-op    { background: #f9a825; color: #fff; }
-    .btn-eq    { background: #e65100; color: #fff; font-size: 1.3rem; font-weight: 700; }
-    .btn-clear { background: #ffca28; color: #333; }
-    .btn-ac    { background: #ef5350; color: #fff; font-weight: 700; }
-    .btn-fn    { background: #ffe082; color: #4a3800; }
-    .btn-mem   { background: #ffb300; color: #fff; }
-    .btn-const { background: #ffc107; color: #4a3000; font-weight: 600; }
+    .btn-op {
+      background: #533483;
+      color: #fff;
+    }
 
-    /* アクティブ演算子 */
-    .btn-op.active { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px #e65100; }
+    .btn-eq {
+      background: #e94560;
+      color: #fff;
+    }
 
-    .span2 { grid-column: span 2; }
+    .btn-clear {
+      background: #0f3460;
+      color: #e2e8f0;
+    }
+
+    .btn-zero {
+      grid-column: span 2;
+    }
   </style>
 </head>
 <body>
 <div class="calc">
-  <div class="header">
-    <h1>関数電卓</h1>
-    <button id="degBtn" onclick="toggleDeg()">DEG</button>
-  </div>
-
   <div class="display">
-    <div class="history" id="history"></div>
-    <div class="expr"    id="expr"></div>
-    <div class="result"  id="result">0</div>
+    <div class="expr" id="expr"></div>
+    <div class="result" id="result">0</div>
   </div>
-
-  <div class="mem-row">
-    <span class="mem-badge" id="memBadge">M</span>
-  </div>
-
-  <!-- ── 科学関数エリア（5列・コンパクト） ── -->
-  <div class="sci-grid">
-    <button class="btn-fn" onclick="applyFn('sin')">sin</button>
-    <button class="btn-fn" onclick="applyFn('cos')">cos</button>
-    <button class="btn-fn" onclick="applyFn('tan')">tan</button>
-    <button class="btn-fn" onclick="applyFn('log')">log</button>
-    <button class="btn-fn" onclick="applyFn('ln')">ln</button>
-
-    <button class="btn-fn" onclick="applyFn('sqrt')">√</button>
-    <button class="btn-fn" onclick="applyFn('sq')">x²</button>
-    <button class="btn-fn" onclick="applyFn('inv')">1/x</button>
-    <button class="btn-fn" onclick="applyFn('fact')">n!</button>
-    <button class="btn-fn" onclick="applyFn('abs')">|x|</button>
-
-    <button class="btn-mem" onclick="memClear()">MC</button>
-    <button class="btn-mem" onclick="memRecall()">MR</button>
-    <button class="btn-mem" onclick="memAdd()">M+</button>
-    <button class="btn-const" onclick="insertConst(Math.PI)">π</button>
-    <button class="btn-const" onclick="insertConst(Math.E)">e</button>
-
-    <button class="btn-ac span2" onclick="clearAll()">AC</button>
-    <button class="btn-clear"   onclick="backspace()">⌫</button>
-    <button class="btn-clear"   onclick="useAns()">Ans</button>
-    <button class="btn-op"      onclick="op('mod')" id="op-mod">mod</button>
-  </div>
-
-  <hr class="divider">
-
-  <!-- ── 数字パッド（4列・大型） ── -->
-  <div class="num-grid">
-    <!-- 補助行 -->
+  <div class="grid">
+    <button class="btn-clear" onclick="clearAll()">AC</button>
     <button class="btn-clear" onclick="toggleSign()">+/-</button>
     <button class="btn-clear" onclick="percent()">%</button>
-    <button class="btn-op"    onclick="op('/')" id="op-div">÷</button>
-    <button class="btn-op"    onclick="op('*')" id="op-mul">×</button>
+    <button class="btn-op"    onclick="op('/')">÷</button>
 
-    <!-- 7 8 9 − -->
     <button class="btn-num" onclick="num('7')">7</button>
     <button class="btn-num" onclick="num('8')">8</button>
     <button class="btn-num" onclick="num('9')">9</button>
-    <button class="btn-op"  onclick="op('-')" id="op-sub">−</button>
+    <button class="btn-op"  onclick="op('*')">×</button>
 
-    <!-- 4 5 6 + -->
     <button class="btn-num" onclick="num('4')">4</button>
     <button class="btn-num" onclick="num('5')">5</button>
     <button class="btn-num" onclick="num('6')">6</button>
-    <button class="btn-op"  onclick="op('+')" id="op-add">+</button>
+    <button class="btn-op"  onclick="op('-')">−</button>
 
-    <!-- 1 2 3 │= (=は2行分) -->
     <button class="btn-num" onclick="num('1')">1</button>
     <button class="btn-num" onclick="num('2')">2</button>
     <button class="btn-num" onclick="num('3')">3</button>
-    <button class="btn-eq"  onclick="equals()" style="grid-row: span 2">=</button>
+    <button class="btn-op"  onclick="op('+')">+</button>
 
-    <!-- 0(×2) . │= 継続 -->
-    <button class="btn-num span2" onclick="num('0')">0</button>
-    <button class="btn-op"        onclick="op('^')" id="op-pow">x^y</button>
+    <button class="btn-num btn-zero" onclick="num('0')">0</button>
+    <button class="btn-num" onclick="dot()">.</button>
+    <button class="btn-eq"  onclick="equals()">=</button>
   </div>
 </div>
 
 <script>
-  let current    = '0';
-  let stored     = null;
-  let operator   = null;
-  let justCalc   = false;
-  let degMode    = true;
-  let memory     = 0;
-  let lastAnswer = null;
+  let current = '0';
+  let stored = null;
+  let operator = null;
+  let justCalc = false;
 
-  const elResult   = document.getElementById('result');
-  const elExpr     = document.getElementById('expr');
-  const elHistory  = document.getElementById('history');
-  const elDegBtn   = document.getElementById('degBtn');
-  const elMemBadge = document.getElementById('memBadge');
+  const elResult = document.getElementById('result');
+  const elExpr   = document.getElementById('expr');
 
-  const OP_SYM = { '+':'+', '-':'−', '*':'×', '/':'÷', '^':'^', 'mod':'mod' };
-  const OP_IDS = { '/':'op-div', '*':'op-mul', '-':'op-sub', '+':'op-add', '^':'op-pow', 'mod':'op-mod' };
-
-  /* ── 表示更新 ── */
   function update() {
     elResult.textContent = current;
-    const len = current.length;
-    elResult.className = 'result' + (len > 16 ? ' xsmall' : len > 10 ? ' small' : '');
   }
 
-  function clearActiveOp() {
-    Object.values(OP_IDS).forEach(id => document.getElementById(id).classList.remove('active'));
-  }
-
-  /* ── 数値入力 ── */
   function num(d) {
-    if (justCalc) { current = d; justCalc = false; clearActiveOp(); }
+    if (justCalc) { current = d; justCalc = false; }
     else current = (current === '0' ? d : current + d);
     update();
   }
 
   function dot() {
-    if (justCalc) { current = '0.'; justCalc = false; clearActiveOp(); update(); return; }
+    if (justCalc) { current = '0.'; justCalc = false; return; }
     if (!current.includes('.')) current += '.';
     update();
   }
 
-  function backspace() {
-    if (current === 'エラー') { current = '0'; update(); return; }
-    current = current.length > 1 ? current.slice(0, -1) : '0';
-    update();
-  }
-
-  /* ── 二項演算 ── */
   function op(o) {
-    if (stored !== null && !justCalc) compute(false);
-    stored   = parseFloat(current);
+    if (stored !== null && !justCalc) calc();
+    stored = parseFloat(current);
     operator = o;
     justCalc = true;
-    elExpr.textContent = `${fmt(stored)} ${OP_SYM[o]}`;
-    clearActiveOp();
-    document.getElementById(OP_IDS[o]).classList.add('active');
+    const sym = {'+':'+', '-':'−', '*':'×', '/':'÷'}[o];
+    elExpr.textContent = `${stored} ${sym}`;
   }
 
-  function compute(showEq) {
+  function calc() {
     if (stored === null || operator === null) return;
     const a = stored, b = parseFloat(current);
     let r;
     switch (operator) {
-      case '+':   r = a + b; break;
-      case '-':   r = a - b; break;
-      case '*':   r = a * b; break;
-      case '/':   r = (b === 0) ? null : a / b; break;
-      case '^':   r = Math.pow(a, b); break;
-      case 'mod': r = (b === 0) ? null : a % b; break;
+      case '+': r = a + b; break;
+      case '-': r = a - b; break;
+      case '*': r = a * b; break;
+      case '/': r = b === 0 ? 'エラー' : a / b; break;
     }
-    if (showEq) {
-      elHistory.textContent = `${fmt(a)} ${OP_SYM[operator]} ${fmt(b)} =`;
-      elExpr.textContent = '';
-    }
-    current = (r === null) ? 'エラー' : fmtNum(r);
-    if (r !== null) lastAnswer = r;
+    const sym = {'+':'+', '-':'−', '*':'×', '/':'÷'}[operator];
+    elExpr.textContent = `${a} ${sym} ${b} =`;
+    current = (typeof r === 'number') ? String(parseFloat(r.toFixed(10))) : r;
     stored = null; operator = null; justCalc = true;
-    clearActiveOp();
     update();
   }
 
-  function equals() { compute(true); }
+  function equals() { calc(); }
 
-  /* ── 関数演算 ── */
-  function applyFn(name) {
-    const v = parseFloat(current);
-    const toRad = x => degMode ? x * Math.PI / 180 : x;
-    let r, label;
-    switch (name) {
-      case 'sin':  r = Math.sin(toRad(v));              label = `sin(${fmt(v)})`; break;
-      case 'cos':  r = Math.cos(toRad(v));              label = `cos(${fmt(v)})`; break;
-      case 'tan': { const tv = Math.tan(toRad(v));
-                    r = isFinite(tv) ? tv : null;        label = `tan(${fmt(v)})`; break; }
-      case 'log':  r = v > 0  ? Math.log10(v) : null;  label = `log(${fmt(v)})`; break;
-      case 'ln':   r = v > 0  ? Math.log(v)   : null;  label = `ln(${fmt(v)})`; break;
-      case 'sqrt': r = v >= 0 ? Math.sqrt(v)  : null;  label = `√(${fmt(v)})`; break;
-      case 'sq':   r = v * v;                           label = `(${fmt(v)})²`; break;
-      case 'inv':  r = v !== 0 ? 1 / v : null;         label = `1/(${fmt(v)})`; break;
-      case 'fact': r = factorial(v);                    label = `${fmt(v)}!`; break;
-      case 'abs':  r = Math.abs(v);                     label = `|${fmt(v)}|`; break;
-    }
-    elHistory.textContent = `${label} =`;
-    elExpr.textContent = '';
-    current = (r === null || r === 'エラー') ? 'エラー' : fmtNum(r);
-    if (typeof r === 'number') lastAnswer = r;
-    justCalc = true;
-    clearActiveOp();
-    update();
-  }
-
-  function factorial(n) {
-    if (!Number.isInteger(n) || n < 0 || n > 170) return 'エラー';
-    let r = 1;
-    for (let i = 2; i <= n; i++) r *= i;
-    return r;
-  }
-
-  /* ── 定数・Ans ── */
-  function insertConst(v) {
-    current = fmtNum(v); justCalc = false; update();
-  }
-
-  function useAns() {
-    if (lastAnswer === null) return;
-    current = fmtNum(lastAnswer); justCalc = false; update();
-  }
-
-  /* ── 補助演算 ── */
   function clearAll() {
     current = '0'; stored = null; operator = null; justCalc = false;
-    elExpr.textContent = ''; elHistory.textContent = '';
-    clearActiveOp(); update();
+    elExpr.textContent = '';
+    update();
   }
 
   function toggleSign() {
@@ -346,45 +193,24 @@
   }
 
   function percent() {
-    current = fmtNum(parseFloat(current) / 100); update();
+    const v = parseFloat(current);
+    current = String(v / 100);
+    update();
   }
 
-  /* ── DEG / RAD ── */
-  function toggleDeg() {
-    degMode = !degMode;
-    elDegBtn.textContent  = degMode ? 'DEG' : 'RAD';
-    elDegBtn.style.background = degMode ? '#e65100' : '#1565c0';
-  }
-
-  /* ── メモリ ── */
-  function memClear()  { memory = 0; elMemBadge.classList.remove('on'); }
-  function memRecall() { current = fmtNum(memory); justCalc = false; update(); }
-  function memAdd()    { memory += parseFloat(current) || 0; elMemBadge.classList.add('on'); }
-
-  /* ── フォーマット ── */
-  function fmtNum(v) {
-    if (typeof v === 'string') return v;
-    if (!isFinite(v)) return 'エラー';
-    return String(parseFloat(v.toPrecision(12)));
-  }
-  function fmt(v) {
-    const s = fmtNum(v);
-    return s.length > 9 ? parseFloat(v.toPrecision(5)).toString() : s;
-  }
-
-  /* ── キーボード ── */
   document.addEventListener('keydown', e => {
-    if (e.key >= '0' && e.key <= '9') { num(e.key); return; }
-    switch (e.key) {
-      case '.': dot(); break;
-      case '+': op('+'); break;
-      case '-': op('-'); break;
-      case '*': op('*'); break;
-      case '/': e.preventDefault(); op('/'); break;
-      case '^': op('^'); break;
-      case 'Enter': case '=': equals(); break;
-      case 'Escape': clearAll(); break;
-      case 'Backspace': backspace(); break;
+    if (e.key >= '0' && e.key <= '9') num(e.key);
+    else if (e.key === '.') dot();
+    else if (e.key === '+') op('+');
+    else if (e.key === '-') op('-');
+    else if (e.key === '*') op('*');
+    else if (e.key === '/') { e.preventDefault(); op('/'); }
+    else if (e.key === 'Enter' || e.key === '=') equals();
+    else if (e.key === 'Escape') clearAll();
+    else if (e.key === 'Backspace') {
+      if (current.length > 1) current = current.slice(0, -1);
+      else current = '0';
+      update();
     }
   });
 </script>
